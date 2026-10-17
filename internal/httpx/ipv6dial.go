@@ -18,9 +18,13 @@ import (
 //
 // The behavior is gated by config.ipv6_first (default on) because some routes
 // only serve over IPv4, so the operator can turn it off from the WebUI.
+// dohEndpoints are JSON DoH resolvers addressed by IP literal, so resolving
+// them never depends on the system resolver that is being bypassed. The paths
+// differ: Cloudflare serves the JSON API on /dns-query, Google on /resolve
+// (/dns-query there expects the RFC 8484 wire format and answers 400).
 var dohEndpoints = []string{
 	"https://1.1.1.1/dns-query",
-	"https://8.8.8.8/dns-query",
+	"https://8.8.8.8/resolve",
 }
 
 var dohClient = &http.Client{Timeout: 5 * time.Second}
