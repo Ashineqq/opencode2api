@@ -81,13 +81,41 @@ func (a *Server) staticHandler() http.Handler {
 			writeAdminError(w, http.StatusNotFound, "not_found", "management endpoint not found")
 			return
 		}
-		if r.URL.Path != "/" && r.URL.Path != "/index.html" {
-			if _, err := fs.Stat(assets, strings.TrimPrefix(r.URL.Path, "/")); err != nil {
-				r.URL.Path = "/"
-			}
+		// The interface travels inside the binary, so a cached copy from an
+		// earlier build would keep running old JavaScript after an upgrade and
+		// make saved settings look like they were ignored. Serve it fresh, and
+		// let index.html carry a build-stamped asset URL on top of that.
+		w.Header().Set("Cache-Control", "no-store")
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			serveIndexHTML(w)
+			return
+		}
+		if _, err := fs.Stat(assets, strings.TrimPrefix(r.URL.Path, "/")); err != nil {
+			serveIndexHTML(w)
+			return
 		}
 		files.ServeHTTP(w, r)
 	})
+}
+
+// serveIndexHTML writes the build-stamped shell, falling back to whatever the
+// embedded file server would produce if the stamp is unavailable.
+//
+// Clear-Site-Data evicts the HTTP cache for this origin. Earlier builds served
+// the interface with no cache headers at all, so a browser that cached that
+// bundle has no way to know it is stale, and the stamped URL below cannot help
+// it: the stale index.html it already holds points at the unstamped paths. This
+// header removes that copy without the operator having to force a reload.
+// Only "cache" is requested, so cookies and stored data are untouched.
+func serveIndexHTML(w http.ResponseWriter) {
+	page := webui.IndexHTML()
+	if len(page) == 0 {
+		http.Error(w, "management interface unavailable", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Clear-Site-Data", `"cache"`)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(page)
 }
 
 func (a *Server) securityHeaders(next http.Handler) http.Handler {
