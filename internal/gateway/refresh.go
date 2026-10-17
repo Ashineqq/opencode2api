@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"opencode2api/internal/config"
+	"opencode2api/internal/httpx"
 	modelcatalog "opencode2api/internal/models"
 )
 
@@ -184,7 +185,7 @@ func (g *Gateway) StartModelRefresh(ctx context.Context) {
 
 func (g *Gateway) refreshProtocolCapabilities(ctx context.Context) (modelcatalog.Capabilities, error) {
 	if g.transports == nil || len(g.transports.items) == 0 {
-		return modelcatalog.FetchCapabilities(ctx, &http.Client{Timeout: 30 * time.Second}, modelcatalog.CapabilitiesURL)
+		return modelcatalog.FetchCapabilities(ctx, &http.Client{Timeout: 30 * time.Second, Transport: httpx.DirectTransport(5 * time.Second)}, modelcatalog.CapabilitiesURL)
 	}
 	var lastErr error
 	for _, proxy := range g.transports.items {

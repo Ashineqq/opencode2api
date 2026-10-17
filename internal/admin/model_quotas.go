@@ -71,7 +71,7 @@ func fetchQuota(ctx context.Context, endpoint, key string) (map[string]quotaWind
 	req.Header.Set("User-Agent", "opencode2api-admin/1.0")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("x-opencode-session", "opencode2api-quota-"+config.Fingerprint(key))
-	client := &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Timeout: 12 * time.Second, Transport: httpx.DirectTransport(5 * time.Second), CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, errors.New("暂时无法连接 OpenCode，请稍后刷新")

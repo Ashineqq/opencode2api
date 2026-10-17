@@ -81,7 +81,7 @@ func NewPricingStore(configPath string, logger *slog.Logger) *PricingStore {
 	}
 	store := &PricingStore{
 		models: make(map[string]Price), cachePath: cachePath, endpoint: modelsDevDefaultURL,
-		client: &http.Client{Timeout: modelsDevTimeout}, logger: logger,
+		client: &http.Client{Timeout: modelsDevTimeout, Transport: httpx.DirectTransport(5 * time.Second)}, logger: logger,
 	}
 	if err := store.loadCache(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		store.lastError = "load metadata cache: " + err.Error()

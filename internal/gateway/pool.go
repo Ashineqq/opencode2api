@@ -192,10 +192,10 @@ func newTransportPool(proxies []string, cfg config.PerformanceConfig, responseHe
 		transport.IdleConnTimeout = time.Duration(cfg.IdleConnTimeoutSeconds) * time.Second
 		transport.ResponseHeaderTimeout = responseHeaderTimeout
 		transport.ForceAttemptHTTP2 = true
-		transport.DialContext = (&net.Dialer{
+		transport.DialContext = httpx.DialIPv6First(&net.Dialer{
 			Timeout:   time.Duration(cfg.ConnectTimeoutSeconds) * time.Second,
 			KeepAlive: 30 * time.Second,
-		}).DialContext
+		})
 		if raw == "direct" {
 			transport.Proxy = nil
 		} else {
