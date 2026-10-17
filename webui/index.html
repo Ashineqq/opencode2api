@@ -550,6 +550,17 @@
               <div id="proxies-chips" class="chips"></div>
               <div class="form-grid">
                 <div class="field">
+                  <label>出站 IPv6 优先（*.opencode.ai）</label
+                  ><select id="c-ipv6-first">
+                    <option value="on">开启（推荐：规避 403 免费额度拦截）</option>
+                    <option value="off">关闭（改用系统 IPv4 解析）</option>
+                  </select>
+                  <div class="section-caption">
+                    开启时直连 opencode.ai 真实 IPv6 地址，绕过本地 DNS 劫持；若某个模型仅在 IPv4
+                    下可用（如 muse-spark-1.3-contributor），可关闭。
+                  </div>
+                </div>
+                <div class="field">
                   <label>新增 Proxy（每行一个）</label
                   ><textarea
                     id="proxies-new"

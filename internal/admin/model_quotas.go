@@ -62,7 +62,7 @@ func decodeQuota(reader io.Reader) (map[string]quotaWindow, error) {
 	return result, nil
 }
 
-func fetchQuota(ctx context.Context, endpoint, key string) (map[string]quotaWindow, error) {
+func fetchQuota(ctx context.Context, endpoint, key string, ipv6First bool) (map[string]quotaWindow, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, errors.New("额度查询地址无效")
@@ -71,7 +71,7 @@ func fetchQuota(ctx context.Context, endpoint, key string) (map[string]quotaWind
 	req.Header.Set("User-Agent", "opencode2api-admin/1.0")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("x-opencode-session", "opencode2api-quota-"+config.Fingerprint(key))
-	client := &http.Client{Timeout: 12 * time.Second, Transport: httpx.DirectTransport(5 * time.Second), CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Timeout: 12 * time.Second, Transport: httpx.DirectTransport(5*time.Second, ipv6First), CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, errors.New("暂时无法连接 OpenCode，请稍后刷新")
@@ -92,12 +92,12 @@ func fetchQuota(ctx context.Context, endpoint, key string) (map[string]quotaWind
 	return decodeQuota(resp.Body)
 }
 
-func refreshQuota(ctx context.Context, endpoint, key string, previous quotaCacheEntry) quotaCacheEntry {
+func refreshQuota(ctx context.Context, endpoint, key string, previous quotaCacheEntry, ipv6First bool) quotaCacheEntry {
 	now := time.Now().UTC()
 	account := previous.Account
 	account.ID, account.Display = config.Fingerprint(key), config.MaskValue(key)
 	account.CheckedAt = now
-	windows, err := fetchQuota(ctx, endpoint, key)
+	windows, err := fetchQuota(ctx, endpoint, key, ipv6First)
 	if err != nil {
 		account.Status, account.Error = "unavailable", err.Error()
 		if account.FetchedAt != nil {
@@ -140,7 +140,7 @@ func (a *Server) handleModelQuotas(w http.ResponseWriter, r *http.Request) {
 			case <-r.Context().Done():
 				return
 			}
-			entries[i] = refreshQuota(r.Context(), endpoint, key, previous)
+			entries[i] = refreshQuota(r.Context(), endpoint, key, previous, cfg.IPv6First)
 		}(i, key, previous)
 	}
 	wg.Wait()

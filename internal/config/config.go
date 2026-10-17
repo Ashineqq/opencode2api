@@ -33,6 +33,13 @@ type Config struct {
 	WebUI             WebUIConfig                  `json:"webui"`
 	Prefer            Tier                         `json:"prefer"`
 	Reasoning         ReasoningConfig              `json:"reasoning"`
+	// IPv6First dials *.opencode.ai over its real IPv6 addresses (resolved via
+	// DoH, bypassing the local DNS) before falling back to the system path. It
+	// defaults to true because the local DNS hijacks those hosts to 198.18.x.x
+	// and the upstream free tier rejects that IPv4 exit with 403 FreeTierError.
+	// Turning it off restores plain system resolution for exits where IPv6 is
+	// unusable or a specific upstream route only serves over IPv4.
+	IPv6First bool `json:"ipv6_first"`
 
 	effectiveProxies []string
 }
@@ -144,6 +151,10 @@ func Load(path string) (Config, error) {
 		Logging:     LoggingConfig{Level: "info", RingSize: 2000},
 		WebUI:       WebUIConfig{Listen: "0.0.0.0:8081", SessionTTLMinutes: 720},
 		Prefer:      TierGo,
+		// Off unless the file says otherwise would silently reintroduce the 403
+		// FreeTierError for free models, so the default is on and only an
+		// explicit "ipv6_first": false turns it off.
+		IPv6First: true,
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()

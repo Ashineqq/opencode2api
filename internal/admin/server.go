@@ -122,6 +122,7 @@ type ConfigView struct {
 	Logging     config.LoggingConfig     `json:"logging"`
 	Prefer      config.Tier              `json:"prefer"`
 	Reasoning   config.ReasoningConfig   `json:"reasoning"`
+	IPv6First   bool                     `json:"ipv6_first"`
 	WebUI       WebUIView                `json:"webui"`
 	Effective   EffectiveView            `json:"effective"`
 	Restart     []string                 `json:"restart_required_fields,omitempty"`
@@ -162,7 +163,10 @@ type ConfigUpdate struct {
 	// A pointer distinguishes an omitted field (legacy clients should keep the
 	// current reasoning configuration) from an explicit empty object (clear it).
 	Reasoning *config.ReasoningConfig `json:"reasoning,omitempty"`
-	WebUI     WebUIView               `json:"webui"`
+	// A pointer for the same reason: an omitted ipv6_first must keep the current
+	// setting instead of silently reading as false.
+	IPv6First *bool     `json:"ipv6_first,omitempty"`
+	WebUI     WebUIView `json:"webui"`
 }
 
 func (a *Server) handleGetConfig(w http.ResponseWriter, _ *http.Request) {
@@ -201,12 +205,17 @@ func (a *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	if update.Reasoning != nil {
 		reasoning = *update.Reasoning
 	}
+	ipv6First := current.IPv6First
+	if update.IPv6First != nil {
+		ipv6First = *update.IPv6First
+	}
 	candidate := config.Config{
 		ServerKeyMetadata: current.ServerKeyMetadata,
 		Rotation:          current.Rotation,
 		Listen:            update.Listen, ServerKeys: serverKeys, ZenKeys: zenKeys, GoKeys: goKeys, Anonymous: update.Anonymous, Proxies: proxies, ProxyFile: update.ProxyFile,
 		Upstream: update.Upstream, Retry: update.Retry, Models: update.Models, Performance: update.Performance, Logging: update.Logging, Prefer: update.Prefer,
 		Reasoning: reasoning,
+		IPv6First: ipv6First,
 		WebUI:     config.WebUIConfig{Enabled: update.WebUI.Enabled, Listen: update.WebUI.Listen, Username: current.WebUI.Username, PasswordHash: current.WebUI.PasswordHash, SessionTTLMinutes: update.WebUI.SessionTTLMinutes},
 	}
 	result, err := a.manager.Apply(candidate, true)
@@ -333,6 +342,7 @@ func (a *Server) configView() ConfigView {
 		Listen: cfg.Listen, ServerKeys: maskSecrets(cfg.ServerKeys, false), ZenKeys: maskSecrets(cfg.ZenKeys, false), GoKeys: maskSecrets(cfg.GoKeys, false), Anonymous: cfg.Anonymous,
 		Proxies: maskSecrets(cfg.Proxies, true), ProxyFile: cfg.ProxyFile, Upstream: cfg.Upstream, Retry: cfg.Retry, Models: cfg.Models,
 		Performance: cfg.Performance, Logging: cfg.Logging, Prefer: cfg.Prefer, Reasoning: cfg.Reasoning,
+		IPv6First: cfg.IPv6First,
 		WebUI:     WebUIView{Enabled: cfg.WebUI.Enabled, Listen: cfg.WebUI.Listen, Username: cfg.WebUI.Username, SessionTTLMinutes: cfg.WebUI.SessionTTLMinutes},
 		Effective: EffectiveView{Listen: effective.API, WebUIListen: effective.WebUI, WebUIEnabled: effective.WebUIEnabled},
 		Restart:   restart,

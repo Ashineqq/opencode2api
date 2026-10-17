@@ -134,6 +134,7 @@ func (m *RuntimeManager) build(cfg config.Config) (*gatewayRuntime, error) {
 		availability = current.availability
 	}
 	gateway.catalog.SetPricingStore(m.metadata)
+	m.metadata.SetIPv6First(cfg.IPv6First)
 	gateway.catalog.SetAvailabilityStore(availability)
 	gateway.availability = availability
 	gateway.catalog.SetCachePath(modelcatalog.CatalogCachePath(m.configPath))

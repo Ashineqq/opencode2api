@@ -70,6 +70,7 @@ type PricingStore struct {
 	cachePath      string
 	endpoint       string
 	client         *http.Client
+	ipv6First      bool
 	clientProvider func() []*http.Client
 	logger         *slog.Logger
 }
@@ -81,7 +82,7 @@ func NewPricingStore(configPath string, logger *slog.Logger) *PricingStore {
 	}
 	store := &PricingStore{
 		models: make(map[string]Price), cachePath: cachePath, endpoint: modelsDevDefaultURL,
-		client: &http.Client{Timeout: modelsDevTimeout, Transport: httpx.DirectTransport(5 * time.Second)}, logger: logger,
+		client: &http.Client{Timeout: modelsDevTimeout, Transport: httpx.DirectTransport(5*time.Second, true)}, ipv6First: true, logger: logger,
 	}
 	if err := store.loadCache(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		store.lastError = "load metadata cache: " + err.Error()
@@ -96,6 +97,19 @@ func (store *PricingStore) SetClientProvider(provider func() []*http.Client) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	store.clientProvider = provider
+}
+
+// SetIPv6First rebuilds the direct fallback client so a change to the IPv6
+// egress policy applies to the next refresh. The gateway transports handed over
+// by SetClientProvider carry the same policy already.
+func (store *PricingStore) SetIPv6First(enabled bool) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.ipv6First == enabled {
+		return
+	}
+	store.ipv6First = enabled
+	store.client = &http.Client{Timeout: modelsDevTimeout, Transport: httpx.DirectTransport(5*time.Second, enabled)}
 }
 
 func (store *PricingStore) refreshClients() []*http.Client {

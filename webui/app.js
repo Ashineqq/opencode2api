@@ -143,6 +143,7 @@ function fillConfig(value) {
   $("#c-web-enabled").checked = value.webui.enabled;
   $("#c-anonymous").checked = !!value.anonymous;
   $("#c-proxyfile").value = value.proxyfile;
+  $("#c-ipv6-first").value = value.ipv6_first ? "on" : "off";
   $("#c-up-zen").value = value.upstream.zen;
   $("#c-up-go").value = value.upstream.go;
   $("#c-attempts").value = value.retry.max_attempts;
@@ -210,6 +211,7 @@ $("#config-form").addEventListener("submit", async (event) => {
       anonymous: $("#c-anonymous").checked,
       proxies: secretInputs("proxies"),
       proxyfile: $("#c-proxyfile").value,
+      ipv6_first: $("#c-ipv6-first").value === "on",
       prefer: $("#c-prefer").value,
       upstream: { zen: $("#c-up-zen").value, go: $("#c-up-go").value },
       retry: { max_attempts: number("#c-attempts"), timeout_seconds: number("#c-timeout") },

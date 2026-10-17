@@ -15,6 +15,9 @@ import (
 // real AAAA records (Cloudflare) and the same request over native IPv6 is
 // accepted, so direct connections to *.opencode.ai resolve AAAA via DoH
 // (IP-literal endpoints, no system DNS involved) and dial IPv6 first.
+//
+// The behavior is gated by config.ipv6_first (default on) because some routes
+// only serve over IPv4, so the operator can turn it off from the WebUI.
 var dohEndpoints = []string{
 	"https://1.1.1.1/dns-query",
 	"https://8.8.8.8/dns-query",
@@ -97,7 +100,14 @@ func resolveOpencodeIPv6(ctx context.Context, host string) []string {
 // only falls back to the system path when IPv6 is unreachable. Non-OpenCode
 // hosts (including proxy addresses) use base unchanged. The SNI/host header
 // still carries the original domain, only the TCP destination changes.
-func DialIPv6First(base *net.Dialer) func(ctx context.Context, network, address string) (net.Conn, error) {
+//
+// When enabled is false the base dialer is returned untouched, which restores
+// plain system resolution. That is the escape hatch for exits where IPv6 is
+// unusable or where a specific upstream route only works over IPv4.
+func DialIPv6First(base *net.Dialer, enabled bool) func(ctx context.Context, network, address string) (net.Conn, error) {
+	if !enabled {
+		return base.DialContext
+	}
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
@@ -122,14 +132,14 @@ func DialIPv6First(base *net.Dialer) func(ctx context.Context, network, address 
 }
 
 // DirectTransport returns an http.Transport clone routing *.opencode.ai over
-// IPv6 first. It exists for one-off clients that do not go through the
-// gateway transport pool.
-func DirectTransport(timeout time.Duration) *http.Transport {
+// IPv6 first when ipv6First is set. It exists for one-off clients that do not
+// go through the gateway transport pool.
+func DirectTransport(timeout time.Duration, ipv6First bool) *http.Transport {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = DialIPv6First(&net.Dialer{
 		Timeout:   timeout,
 		KeepAlive: 30 * time.Second,
-	})
+	}, ipv6First)
 	transport.Proxy = nil
 	return transport
 }

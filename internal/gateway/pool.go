@@ -182,7 +182,7 @@ func (p *transportPool) healthCounts() (total, healthy int) {
 	return len(p.items), healthy
 }
 
-func newTransportPool(proxies []string, cfg config.PerformanceConfig, responseHeaderTimeout time.Duration) (*transportPool, error) {
+func newTransportPool(proxies []string, cfg config.PerformanceConfig, responseHeaderTimeout time.Duration, ipv6First bool) (*transportPool, error) {
 	p := &transportPool{items: make([]*proxyTransport, 0, len(proxies))}
 	for _, raw := range proxies {
 		transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -195,7 +195,7 @@ func newTransportPool(proxies []string, cfg config.PerformanceConfig, responseHe
 		transport.DialContext = httpx.DialIPv6First(&net.Dialer{
 			Timeout:   time.Duration(cfg.ConnectTimeoutSeconds) * time.Second,
 			KeepAlive: 30 * time.Second,
-		})
+		}, ipv6First)
 		if raw == "direct" {
 			transport.Proxy = nil
 		} else {

@@ -6,6 +6,7 @@
   "anonymous": false,
   "proxies": ["direct"],
   "proxyfile": "",
+  "ipv6_first": true,
   "upstream": {
     "zen": "https://opencode.ai/zen",
     "go": "https://opencode.ai/zen/go",
