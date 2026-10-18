@@ -262,6 +262,27 @@ $("#config-form").addEventListener("submit", async (event) => {
     toast(error.message, true);
   }
 });
+// The egress switch applies on change: flipping it must take effect right
+// away, so it never waits for the full configuration form to be submitted.
+$("#c-ipv6-first").addEventListener("change", async () => {
+  const enabled = $("#c-ipv6-first").value === "on";
+  try {
+    const result = await api("/api/config/ipv6-first", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    });
+    if (config) config.ipv6_first = !!result.ipv6_first;
+    toast(
+      enabled
+        ? "已切换到 IPv6 出口，已立即生效"
+        : "已切换到 IPv4 出口，已立即生效（免费模型可能返回 403）",
+    );
+  } catch (error) {
+    // Never leave the control showing a value the server rejected.
+    $("#c-ipv6-first").value = enabled ? "off" : "on";
+    toast(error.message, true);
+  }
+});
 $("#reload-config").onclick = async () => {
   try {
     const result = await api("/api/config/reload", { method: "POST", body: "{}" });

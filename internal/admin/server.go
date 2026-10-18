@@ -50,6 +50,10 @@ func (a *Server) Handler() http.Handler {
 	mux.Handle("POST /api/auth/logout", a.authenticate(a.csrf(http.HandlerFunc(a.handleLogout))))
 	mux.Handle("GET /api/config", a.authenticate(http.HandlerFunc(a.handleGetConfig)))
 	mux.Handle("PUT /api/config", a.authenticate(a.csrf(http.HandlerFunc(a.handlePutConfig))))
+	// The egress switch is a runtime toggle, not a form field: it applies the
+	// moment the operator flips it, without waiting for a full configuration
+	// submit.
+	mux.Handle("POST /api/config/ipv6-first", a.authenticate(a.csrf(http.HandlerFunc(a.handleSetIPv6First))))
 	mux.Handle("POST /api/config/reload", a.authenticate(a.csrf(http.HandlerFunc(a.handleReload))))
 	mux.Handle("POST /api/config/reveal", a.authenticate(a.csrf(http.HandlerFunc(a.handleReveal))))
 	mux.Handle("PUT /api/account", a.authenticate(a.csrf(http.HandlerFunc(a.handleAccount))))
@@ -195,6 +199,34 @@ type ConfigUpdate struct {
 	// setting instead of silently reading as false.
 	IPv6First *bool     `json:"ipv6_first,omitempty"`
 	WebUI     WebUIView `json:"webui"`
+}
+
+// handleSetIPv6First flips the egress policy on its own so the WebUI switch
+// takes effect on change. Rebuilding the runtime installs fresh transports, so
+// the next upstream request uses the new policy.
+func (a *Server) handleSetIPv6First(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := decodeAdminJSON(w, r, &input); err != nil {
+		writeAdminError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if input.Enabled == nil {
+		writeAdminError(w, http.StatusBadRequest, "invalid_request", "enabled is required")
+		return
+	}
+	enabled := *input.Enabled
+	result, err := a.manager.Update(func(cfg *config.Config) error {
+		cfg.IPv6First = enabled
+		return nil
+	})
+	if err != nil {
+		writeAdminError(w, http.StatusBadRequest, "apply_failed", err.Error())
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ipv6_first": enabled, "result": result})
 }
 
 func (a *Server) handleGetConfig(w http.ResponseWriter, _ *http.Request) {
